@@ -4,39 +4,39 @@ start ANSIDX10(ansival,ansirec,ansifld,ansitest,ansicl,ansicon,ansiprov)
  
 'Changes:
 
-'	R. Whaite:  8/14/2015 Added logic to return BK (ICD-9) or ABK (ICD-10) as the code list qualifier.  Parm file needs to provide the ISN-ID (7100)
+'   R. Whaite:  8/14/2015 Added logic to return BK (ICD-9) or ABK (ICD-10) as the code list qualifier.  Parm file needs to provide the ISN-ID (7100)
 '             from the event in Record Type 102 Field 013.
 
-'	R. Whaite:  8/17/2015 Added GETDXFROM9 function to get ICD-9 DX Information from the DXM IV Record.  Note, this MUST be modified for each Center.
+'   R. Whaite:  8/17/2015 Added GETDXFROM9 function to get ICD-9 DX Information from the DXM IV Record.  Note, this MUST be modified for each Center.
 
 
 'Modified:  Ralph Whaite, 8/18/2015
-'		Added an option flag "dofield013".  Setting this option flag to "Y" prepend the string "ICD10:" to the DX code when the 
-'		code set version is ICD-10.  This value will rely on the AnsiWrap script to indicate ABK when the code set is ICD10.
-'		This will be most helpful for those who's ANSIP CMHC program is not up to current patch level with this functionality built in.
-'		This process in AnsiWrap uses sed to replace a specific text string "BK:ICD10:" with "ABK:".
-'		This requires that the same flag "dofield013" be set in the AnsiWrap script since this will 
-'		apply the necessary logic to create the string "BK:ICD10:" when sending the ICD-10 code.
+'      Added an option flag "dofield013".  Setting this option flag to "Y" prepend the string "ICD10:" to the DX code when the 
+'      code set version is ICD-10.  This value will rely on the AnsiWrap script to indicate ABK when the code set is ICD10.
+'      This will be most helpful for those who's ANSIP CMHC program is not up to current patch level with this functionality built in.
+'      This process in AnsiWrap uses sed to replace a specific text string "BK:ICD10:" with "ABK:".
+'      This requires that the same flag "dofield013" be set in the AnsiWrap script since this will 
+'      apply the necessary logic to create the string "BK:ICD10:" when sending the ICD-10 code.
 
  'Dependencies
  
- '1.	Recode Table RU2DXTYP - This recode table recodes the RU to either MH, SA or IDD (and optionally "PH" - Physical Health).  
- '		This value is used by the script to determien what type of DX needs to be selected by the script and handed back to the ANSIP 
- '		process.
+ '1.   Recode Table RU2DXTYP - This recode table recodes the RU to either MH, SA or IDD (and optionally "PH" - Physical Health).  
+ '      This value is used by the script to determien what type of DX needs to be selected by the script and handed back to the ANSIP 
+ '      process.
  
- '2.	Libraries and Functions
- '		a.	the GetClientDX function lib_DX10 is used and returns arrays containing the dx_type, icd9_code, icd10_code
+ '2.   Libraries and Functions
+ '      a.   the GetClientDX function lib_DX10 is used and returns arrays containing the dx_type, icd9_code, icd10_code
  
  'ToDo:
  
- '1.	Do we want to provide options for recoding event FS and event SAC to MH, SA or IDD?  Should be easy enough to do if 
+ '1.   Do we want to provide options for recoding event FS and event SAC to MH, SA or IDD?  Should be easy enough to do if 
  '    this functinality is desied.
  '
- '2.	**DONE** Customize function GETDXFROM9 for your Centers DST's, DCT's and or DB
+ '2.   **DONE** Customize function GETDXFROM9 for your Centers DST's, DCT's and or DB
  '
- '3.	Get Tim to put his GetOption and GetParm stuff in here so we can drive more stuff from a parm.  Then I can add it to an include ;-)
+ '3.   Get Tim to put his GetOption and GetParm stuff in here so we can drive more stuff from a parm.  Then I can add it to an include ;-)
  
- '4.	Move functions icd10recavail and GETDXFROM10 to the lib_DX10 function library
+ '4.   Move functions icd10recavail and GETDXFROM10 to the lib_DX10 function library
 
  
 %include inc_DX10
@@ -52,8 +52,8 @@ ansiprov is x
 
 'Logging and Trace - Typically needed for testing.  Comment out if no longer needed.  Filesystem location and filename will need to be
 '               Specific per Center.  Note, for tracing to provide useful feedback while testing, the ANSI process should only be 
-'								run for one client and one event at a time.  Otherwise the trace file keeps over-writing itself.  However, the 
-'								logfile will record the action on each event put into the ANSI Process
+'                        run for one client and one event at a time.  Otherwise the trace file keeps over-writing itself.  However, the 
+'                        logfile will record the action on each event put into the ANSI Process
 
 |         is x   | = "|"
 ansiorig  is x
@@ -65,27 +65,27 @@ ansiorig  is x
 'Processing Vars
 rc       is b
 '***************************************************************************************************************************
-dx10date is d dx10date = 08/01/2015		'*******Change to 10/01/2015 for production.  Any other date is ONLY for testing******.
+dx10date is d dx10date = 08/01/2015      '*******Change to 10/01/2015 for production.  Any other date is ONLY for testing******.
 '***************************************************************************************************************************
-rtdxtype	is x
-icd_ver	  is x
+rtdxtype   is x
+icd_ver     is x
 usedx     is x
 rurecode  is x  rurecode = "RU2DXTYP"  'Change to match your RU to DX Type Recode
 
 dofield013 is x  dofield013 = "Y"
 
 'ISN DST's & Vars
-$$isn.id			is x	
-$$isn.clid 		is x
-$$isn.dt			is d
-$$isn.sac			is b
-$$isn.ru			is b
-$$isn.fs			is b
+$$isn.id         is x   
+$$isn.clid       is x
+$$isn.dt         is d
+$$isn.sac         is b
+$$isn.ru         is b
+$$isn.fs         is b
 
 'Client DST's & Vars
 
 
-ansiorig = ansival			'Grab the original ansival value and keep it for comparison purposes.  Should be the ISN ID for the event
+ansiorig = ansival         'Grab the original ansival value and keep it for comparison purposes.  Should be the ISN ID for the event
 
 $allowupdate(ansival)
 $silent(ansival)
@@ -96,25 +96,25 @@ if    ansirec = "102" and (ansifld = "001" or ansifld = "013")
 'Get the details of the event from the ISN ID associaed witht he event.
 rc = $dbread(09,ansiorig,$$isn.clid,$$isn.dt,$$isn.sac,$$isn.ru,$$isn.fs)
 
-	rtdxtype = $rt($$isn.ru,rurecode,"R")					'Get the DX Type (MH, IDD, SA) by looking by recoding event RU
+   rtdxtype = $rt($$isn.ru,rurecode,"R")               'Get the DX Type (MH, IDD, SA) by looking by recoding event RU
 
-'	icd10recavail($$isn.clid)													'Is there an ICD-10 Record Available"
+'   icd10recavail($$isn.clid)                                       'Is there an ICD-10 Record Available"
 
-	if $$isn.dt < dx10date													'Determine if where we should get the DX (ICD-9 or ICD-10 record and if we should return
-		icd_ver = "9"																'the ICD-9 value (before ICD-10 date) or the ICD-10 Value
-	else
-		icd_ver = "10"
-	endif
+   if $$isn.dt < dx10date                                       'Determine if where we should get the DX (ICD-9 or ICD-10 record and if we should return
+      icd_ver = "9"                                                'the ICD-9 value (before ICD-10 date) or the ICD-10 Value
+   else
+      icd_ver = "10"
+   endif
 
-	if ansifld = "013"														'This will handle sending BK for ICD-9 and ABK for ICD-10 when called from field 13 (record 102)
-		select icd_ver
-			case "9"
-				ansival = "BK"
-			case "10" 
-				ansival = "ABK"
-		endselect	
-	
-	else
+   if ansifld = "013"                                          'This will handle sending BK for ICD-9 and ABK for ICD-10 when called from field 13 (record 102)
+      select icd_ver
+         case "9"
+            ansival = "BK"
+         case "10" 
+            ansival = "ABK"
+      endselect   
+   
+   else
 
 		if 			icd_ver = "10"
 			usedx = {"lib_DX10"}getDXfrom10($$isn.clid,icd_ver,rtdxtype)
@@ -124,13 +124,13 @@ rc = $dbread(09,ansiorig,$$isn.clid,$$isn.dt,$$isn.sac,$$isn.ru,$$isn.fs)
 			usedx = getDXfrom9($$isn.clid,icd_ver,rtdxtype)							'Still need to build getDXfrom9 function
 		endif
 
-	if dofield013 = "Y" and icd_ver = "10"
-		ansival = "ICD10:" + usedx
-	else 
-		ansival = usedx
-	endif
-	
-	endif
+   if dofield013 = "Y" and icd_ver = "10"
+      ansival = "ICD10:" + usedx
+   else 
+      ansival = usedx
+   endif
+   
+   endif
 endif
 
 'logstring = "ENTITY" + | + rc + | + ansiorig + | + ansirec + | + ansifld + | + ansicl + | + ansicon + | + ansival
@@ -147,55 +147,55 @@ function GETDXFROM9(cid,icd_ver,rtdxtype) is x
 '*     This Function is Very Center Specific          *
 '*                                                    *
 '******************************************************
-rc					 is i
+rc                is i
 cid          is x
 rtdxtype     is x
-icd_ver			 is x
+icd_ver          is x
 
-c.dsmiiir		 is h
-c.diag			 is x		'Axis I Level 1
-c.dxaxi2		 is x 	'Axis I Level 2
-c.dxaxi3		 is x		'Axis I Level 3
-c.dxaxii1		 is x		'Axis II Level 1
-c.dxaxii2		 is x		'Axis II Level 2
+c.dsmiiir       is h
+c.diag          is x      'Axis I Level 1
+c.dxaxi2       is x    'Axis I Level 2
+c.dxaxi3       is x      'Axis I Level 3
+c.dxaxii1       is x      'Axis II Level 1
+c.dxaxii2       is x      'Axis II Level 2
 
 rc = $dbread(2,cid, c.dsmiiir, c.diag, c.dxaxi2, c.dxaxi3,c.dxaxii1,c.dxaxii2)
 
 Select rtdxtype
-	Case "MH"
-	
-	'First try to find a Target Pop DX
-	if 		   $rt(400,c.diag,"1") = "B" or $rt(400,c.diag,"1") = "S" or $rt(400,c.diag,"1") = "D"
-		   GETDXFROM9 = c.diag
-	elseif   $rt(400,c.dxaxi2,"1") = "B" or $rt(400,c.dxaxi2,"1") = "S" or $rt(400,c.dxaxi2,"1") = "D"
-		   GETDXFROM9 = c.dxaxi2
-	elseif 	 $rt(400,c.dxaxi3,"1") = "B" or $rt(400,c.dxaxi3,"1") = "S" or $rt(400,c.dxaxi3,"1") = "D"
-		   GETDXFROM9 = c.dxaxi3
-	'Next try to find Other DX besides SA		
-	elseif $rt(400,c.diag,"1") = "O" and $rt(400,c.diag,"3") != "SA"
-		   GETDXFROM9 = c.diag
-	elseif $rt(400,c.dxaxi2,"1") = "O" and $rt(400,c.dxaxi2,"3") != "SA"
-		   GETDXFROM9 = c.dxaxi2
+   Case "MH"
+   
+   'First try to find a Target Pop DX
+   if          $rt(400,c.diag,"1") = "B" or $rt(400,c.diag,"1") = "S" or $rt(400,c.diag,"1") = "D"
+         GETDXFROM9 = c.diag
+   elseif   $rt(400,c.dxaxi2,"1") = "B" or $rt(400,c.dxaxi2,"1") = "S" or $rt(400,c.dxaxi2,"1") = "D"
+         GETDXFROM9 = c.dxaxi2
+   elseif     $rt(400,c.dxaxi3,"1") = "B" or $rt(400,c.dxaxi3,"1") = "S" or $rt(400,c.dxaxi3,"1") = "D"
+         GETDXFROM9 = c.dxaxi3
+   'Next try to find Other DX besides SA      
+   elseif $rt(400,c.diag,"1") = "O" and $rt(400,c.diag,"3") != "SA"
+         GETDXFROM9 = c.diag
+   elseif $rt(400,c.dxaxi2,"1") = "O" and $rt(400,c.dxaxi2,"3") != "SA"
+         GETDXFROM9 = c.dxaxi2
   elseif $rt(400,c.dxaxi3,"1") = "O" and $rt(400,c.dxaxi3,"3") != "SA"
-		   GETDXFROM9 = c.dxaxi3
-	'If nothing there, send the V71.09
-	else
-			 GETDXFROM9 = "V71.09"
-	endif	
-		
-	Case "SA"
+         GETDXFROM9 = c.dxaxi3
+   'If nothing there, send the V71.09
+   else
+          GETDXFROM9 = "V71.09"
+   endif   
+      
+   Case "SA"
 
-	if 		 $rt(400,c.diag,"3") = "SA"
-		   GETDXFROM9 = c.diag
-	elseif $rt(400,c.dxaxi2,"3") = "SA"
-		   GETDXFROM9 = c.dxaxi2
-	elseif $rt(400,c.dxaxi3,"3") = "SA"
-		   GETDXFROM9 = c.dxaxi3
-	endif
-		
-	Case "IDD"
-			 GETDXFROM9 = c.dxaxii1
-	
+   if        $rt(400,c.diag,"3") = "SA"
+         GETDXFROM9 = c.diag
+   elseif $rt(400,c.dxaxi2,"3") = "SA"
+         GETDXFROM9 = c.dxaxi2
+   elseif $rt(400,c.dxaxi3,"3") = "SA"
+         GETDXFROM9 = c.dxaxi3
+   endif
+      
+   Case "IDD"
+          GETDXFROM9 = c.dxaxii1
+   
 endselect
 
 end GETDXFROM9
