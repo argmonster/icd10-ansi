@@ -39,8 +39,6 @@ start ANSIDX10(ansival,ansirec,ansifld,ansitest,ansicl,ansicon,ansiprov)
  '4.   Move functions icd10recavail and GETDXFROM10 to the lib_DX10 function library
 
  
-%include inc_DX10
-
 'ANSIP Vars
 ansival  is x
 ansirec  is x
@@ -50,29 +48,16 @@ ansicl   is x
 ansicon  is x
 ansiprov is x
 
-'Logging and Trace - Typically needed for testing.  Comment out if no longer needed.  Filesystem location and filename will need to be
-'               Specific per Center.  Note, for tracing to provide useful feedback while testing, the ANSI process should only be 
-'                        run for one client and one event at a time.  Otherwise the trace file keeps over-writing itself.  However, the 
-'                        logfile will record the action on each event put into the ANSI Process
-
-|         is x   | = "|"
 ansiorig  is x
-'logfile   is x  logfile = "/c4/EXPORT2/trace/ANSIDX10.LOG"
-'logstring is x
-'$trace("path", "/c4/EXPORT2/trace/ANSIDX10.TXT")
-'$trace("on")
 
 'Processing Vars
 rc       is b
-'***************************************************************************************************************************
-dx10date is d dx10date = 08/01/2015      '*******Change to 10/01/2015 for production.  Any other date is ONLY for testing******.
-'***************************************************************************************************************************
 rtdxtype   is x
 icd_ver     is x
 usedx     is x
+'***************************************************************************************************************************
 rurecode  is x  rurecode = "RU2DXTYP"  'Change to match your RU to DX Type Recode
-
-dofield013 is x  dofield013 = "Y"
+'***************************************************************************************************************************
 
 'ISN DST's & Vars
 $$isn.id         is x   
@@ -84,59 +69,35 @@ $$isn.fs         is b
 
 'Client DST's & Vars
 
-
 ansiorig = ansival         'Grab the original ansival value and keep it for comparison purposes.  Should be the ISN ID for the event
 
 $allowupdate(ansival)
 $silent(ansival)
 
 'Identify the Record and Field from the ANSI parm
-if    ansirec = "102" and (ansifld = "001" or ansifld = "013")
+if ansirec != "102" then
+   return
+endif
 
 'Get the details of the event from the ISN ID associaed witht he event.
 rc = $dbread(09,ansiorig,$$isn.clid,$$isn.dt,$$isn.sac,$$isn.ru,$$isn.fs)
 
-   rtdxtype = $rt($$isn.ru,rurecode,"R")               'Get the DX Type (MH, IDD, SA) by looking by recoding event RU
-
-'   icd10recavail($$isn.clid)                                       'Is there an ICD-10 Record Available"
-
-   if $$isn.dt < dx10date                                       'Determine if where we should get the DX (ICD-9 or ICD-10 record and if we should return
-      icd_ver = "9"                                                'the ICD-9 value (before ICD-10 date) or the ICD-10 Value
-   else
-      icd_ver = "10"
-   endif
-
-   if ansifld = "013"                                          'This will handle sending BK for ICD-9 and ABK for ICD-10 when called from field 13 (record 102)
-      select icd_ver
-         case "9"
-            ansival = "BK"
-         case "10" 
-            ansival = "ABK"
-      endselect   
-   
-   else
-
-		if 			icd_ver = "10"
-			usedx = {"lib_DX10"}getDXfrom10($$isn.clid,icd_ver,rtdxtype)
-		elseif 	{"lib_DX10"}icd10recavail($$isn.clid) = "Y" and icd_ver = "9"
-			usedx = {"lib_DX10"}getDXfrom10($$isn.clid,icd_ver,rtdxtype)
-		elseif 	{"lib_DX10"}icd10recavail($$isn.clid) = "N" and icd_ver = "9"
-			usedx = getDXfrom9($$isn.clid,icd_ver,rtdxtype)							'Still need to build getDXfrom9 function
-		endif
-
-   if dofield013 = "Y" and icd_ver = "10"
-      ansival = "ICD10:" + usedx
-   else 
-      ansival = usedx
-   endif
-   
-   endif
+if ansifld = "013"      'This will handle sending BK for ICD-9 and ABK for ICD-10 when called from field 13 (record 102)
+   ansival = "lib_DX10":getBillQualifier($$isn.dt)
+   return
 endif
 
-'logstring = "ENTITY" + | + rc + | + ansiorig + | + ansirec + | + ansifld + | + ansicl + | + ansicon + | + ansival
+if ansifld = "001" then
+   rtdxtype = $rt($$isn.ru,rurecode,"R")               'Get the DX Type (MH, IDD, SA) by looking by recoding event RU
+   usedx = "lib_DX10":getBillingDx($$isn.clid, $$isn.dt, rtdxtype)
+   if usedx !dp then
+      'get the legacy dx record
+      'throw error?
+   endif
 
-'$log(logstring,logfile)
-'$trace("off")
+   ansival = usedx
+   return
+endif
 end ANSIDX10
 
 
