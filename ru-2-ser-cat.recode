@@ -1,0 +1,7 @@
+RTDESC|RU2DXTYP|B|X|Service Type By RU|||
+RTITEM|RU2DXTYP|**replace with RU Start**|**replace with RU End**|PH|Physical Health Services||
+RTITEM|RU2DXTYP|**replace with RU Start**|**replace with RU End**|MH|Mental Health Services||
+RTITEM|RU2DXTYP|**replace with RU Start**|**replace with RU End**|IDD|IDD Services||
+RTITEM|RU2DXTYP|**replace with RU Start**|**replace with RU End**|SA|Recovery Services||
+RTITEM|RU2DXTYP|[OTH]||ERROR|Input Invalid||
+RTITEM|RU2DXTYP|[DNP]||ERROR|Input Must Be Provided||
